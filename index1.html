@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Futuristic Food Dashboard</title>
+    <!-- Use Tailwind CSS for rapid styling and responsiveness -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Use Chart.js for data visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Use a new, friendly font style -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Supabase SDK for data persistence -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.43.3/dist/umd/supabase.min.js"></script>
+        <!-- N8N css -->
+    <link href="https://cdn.jsdelivr.net/npm/@n8n/chat/dist/style.css" rel="stylesheet" />
+    <link rel="stylesheet" href="./styles.css">
+        
+    <style>
+        /*
+        * This section contains the custom CSS for the new food-themed design.
+        * We're using a warm gradient for the background to make it more inviting.
+        * Glassmorphism is kept, but with a different color scheme.
+        */
+        :root {
+            --food-orange: #ff9933;
+            --food-yellow: #ffcc66;
+            --food-cream: #f5f5dc;
+            --dark-brown: #5c3c2e;
+            --glass-bg: rgba(255, 255, 255, 0.1);
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            color: #4a4a4a;
+            /* New, more attractive background gradient */
+            background: linear-gradient(-45deg, #FF5733, #FFC300, #DAF7A6, #C70039);
+            background-size: 400% 400%;
+            animation: gradient-animation 15s ease infinite;            
+           
+        }
+
+         /* background image */
+
+         body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url('./food2.jpeg');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            opacity: 0.2; /* 👈 very low opacity */
+            z-index: -1;
+        }
+
+
+        @keyframes gradient-animation {
+            0% {
+                background-position: 0% 50%;
+            }
+            50% {
+                background-position: 100% 50%;
+            }
+            100% {
+                background-position: 0% 50%;
+            }
+        }
+
+        .glass-card {
+            background-color: var(--glass-bg);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(15px);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .neon-glow {
+            /* Kept the glow but adjusted colors for the new theme */
+            text-shadow: 0 0 5px var(--food-orange), 0 0 10px var(--food-orange);
+            color: var(--dark-brown);
+        }
+
+        .neon-border {
+            border: 2px solid var(--food-yellow);
+            box-shadow: 0 0 5px var(--food-yellow), 0 0 10px var(--food-yellow);
+        }
+
+        /* A pulsating animation for the title and a smooth transition for hover effects */
+        .pulsate {
+            animation: pulsate-glow 2s infinite;
+        }
+
+        @keyframes pulsate-glow {
+            0%, 100% {
+                text-shadow: 0 0 5px var(--food-orange), 0 0 10px var(--food-orange);
+            }
+            50% {
+                text-shadow: 0 0 10px var(--food-orange), 0 0 20px var(--food-orange), 0 0 30px var(--food-orange);
+            }
+        }
+
+        .star-rating .star {
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+
+      
+        
+        
+        
+    </style>
+</head>
+<body class="flex flex-col min-h-screen p-8 md:p-12 lg:p-16">
+
+    <!-- Main Dashboard Header -->
+    <header class="text-center mb-12">
+        <h1 class="text-3xl sm:text-4xl md:text-5xl font-bold uppercase tracking-wider pulsate">
+            <span style="text-transform: capitalize;">Desk to Dish</span>
+        </h1>
+        <p class="mt-4 text-md sm:text-lg text-gray-800">
+            Bring your favorite homemade dish from your kitchen to the conference room! Desk to Dish is our team-wide NA PotLuck where everyone shares a taste of their culture, creativity, and comfort food. Let’s celebrate teamwork over tasty treats!
+        </p>
+    </header>
+
+    <!-- Main Grid Container for Widgets -->
+    <main class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 w-full max-w-7xl mx-auto flex-grow">
+
+        <!-- Widget 1: Total Servings Summary -->
+        <div class="glass-card rounded-xl p-6 transition-transform duration-300 hover:scale-105 hover:neon-border flex flex-col justify-center">
+            <h2 class="text-xl sm:text-2xl font-bold mb-4">Total Servings</h2>
+            <div class="text-center">
+                <p id="totalServings" class="text-6xl sm:text-7xl font-bold neon-glow">0</p>
+                <p class="text-sm mt-2 text-gray-600">servings committed</p>
+            </div>
+        </div>
+
+        <!-- Widget 2: Food Category Chart -->
+        <div class="glass-card rounded-xl p-6 transition-transform duration-300 hover:scale-105 hover:neon-border">
+            <h2 class="text-xl sm:text-2xl font-bold mb-4">Categories</h2>
+            <div class="w-full h-48 md:h-64 lg:h-72">
+                <canvas id="categoryChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Widget 3: Servings per Person Chart -->
+        <div class="glass-card rounded-xl p-6 transition-transform duration-300 hover:scale-105 hover:neon-border">
+            <h2 class="text-xl sm:text-2xl font-bold mb-4">Servings by Person</h2>
+            <div class="w-full h-48 md:h-64 lg:h-72">
+                <canvas id="personChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Widget 4: Food Items List -->
+        <div class="md:col-span-2 lg:col-span-3 glass-card rounded-xl p-6 transition-transform duration-300 hover:scale-105 hover:neon-border">
+            <h2 class="text-xl sm:text-2xl font-bold mb-4">Incoming Items</h2>
+            <ul id="itemsList" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-gray-800">
+                <!-- Items will be injected here by JavaScript -->
+                <li class="bg-gray-200 bg-opacity-30 rounded-lg p-4">Loading items...</li>
+            </ul>
+        </div>
+        
+        <!-- Widget 5: Feedback Form -->
+        <div class="md:col-span-2 lg:col-span-3 glass-card rounded-xl p-6 transition-transform duration-300 hover:scale-105 hover:neon-border">
+            <h2 class="text-xl sm:text-2xl font-bold mb-4">User Feedback</h2>
+            <form id="feedbackForm" class="space-y-4">
+                <div>
+                    <label for="feedbackName" class="block text-sm font-medium text-gray-600">Your Name</label>
+                    <input type="text" id="feedbackName" class="w-full p-2 mt-1 rounded-md bg-gray-200 bg-opacity-40 text-gray-800 border border-gray-400 focus:ring-2 focus:ring-food-yellow focus:outline-none" placeholder="Enter your name" required>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-600">Rating</label>
+                    <div id="starRating" class="star-rating flex items-center space-x-1 mt-1">
+                        <!-- SVG stars will be created by JavaScript -->
+                    </div>
+                </div>
+                <div>
+                    <label for="feedbackComment" class="block text-sm font-medium text-gray-600">Comments</label>
+                    <textarea id="feedbackComment" rows="3" class="w-full p-2 mt-1 rounded-md bg-gray-200 bg-opacity-40 text-gray-800 border border-gray-400 focus:ring-2 focus:ring-food-yellow focus:outline-none" placeholder="Share your thoughts"></textarea>
+                </div>
+                <button type="submit" id="submitButton" class="w-full py-2 px-4 rounded-md font-bold uppercase tracking-wider text-white bg-food-orange transition-colors duration-300 hover:bg-food-yellow hover:text-dark-brown">
+                    Submit Feedback
+                </button>
+            </form>
+            <div id="feedbackMessage" class="mt-4 text-center hidden"></div>
+        </div>
+        
+        <!-- Widget 6: Feedback Display -->
+        <div class="md:col-span-2 lg:col-span-3 glass-card rounded-xl p-6 transition-transform duration-300 hover:scale-105 hover:neon-border">
+            <h2 class="text-xl sm:text-2xl font-bold mb-4">Feedback</h2>
+            <div id="feedbackDisplay" class="space-y-4">
+                <p class="text-center text-gray-600">Loading feedback...</p>
+            </div>
+        </div>
+
+
+            <!--JavaScript for N8N chatbot starts --> 
+
+            <script type="module">
+            import { createChat } from 'https://cdn.jsdelivr.net/npm/@n8n/chat/dist/chat.bundle.es.js';
+
+            
+        createChat({
+            webhookUrl: 'https://n8n.srv972741.hstgr.cloud/webhook/8fe3a27b-a063-4a39-9e83-98f7097de5a4/chat',
+            webhookConfig: {
+                method: 'POST',
+                headers: {}
+            },
+            target: '#n8n-chat',
+            mode: 'window',
+            chatInputKey: 'chatInput',
+            chatSessionKey: 'sessionId',
+            metadata: {},
+            showWelcomeScreen: false,
+            defaultLanguage: 'en',
+            initialMessages: [
+                '🍹 Hi, I am your AI Assistant. How can I assist you today? ',
+                
+            ],
+            i18n: {
+                en: {
+                    title: '🍽 PotLuck ',
+                    subtitle: "",
+                    footer: '',
+                    getStarted: 'New Conversation',
+                    inputPlaceholder: 'Type your question..',
+                },
+            },
+        });
+
+            
+        </script>
+
+     <!--JavaScript for N8N chatbot starts -->
+
+</div>
+
+    </main>
+
+    <!-- JavaScript for data fetching and dashboard logic -->
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Define the Google Sheets CSV URL
+            const GOOGLE_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vT8VSMsrezjGy1TYgnku3fltA7jQKIAfJvyvyZR6jvlkbG4gaHf5EGlK0UTrwfsm2bm5zJHae-29if3/pub?gid=0&single=true&output=csv';
+
+            // Define neon colors for the charts
+            const CHART_COLORS = [
+                'rgba(255, 153, 51, 0.7)',  // Food Orange
+                'rgba(255, 204, 102, 0.7)',  // Food Yellow
+                'rgba(173, 126, 88, 0.7)',  // Warm Brown
+                'rgba(141, 105, 78, 0.7)',  // Darker Brown
+                'rgba(245, 245, 220, 0.7)',  // Food Cream
+                'rgba(255, 102, 102, 0.7)'   // Soft Red
+            ];
+
+            // Define neon borders for charts
+            const CHART_BORDERS = [
+                'rgb(255, 153, 51)',
+                'rgb(255, 204, 102)',
+                'rgb(173, 126, 88)',
+                'rgb(141, 105, 78)',
+                'rgb(245, 245, 220)',
+                'rgb(255, 102, 102)'
+            ];
+
+            // ---- SUPABASE CONFIGURATION ----
+            // Your Supabase project's API URL and anonymous public key.
+            const SUPABASE_URL = 'https://vhifgmfiurhrvcyfxtjb.supabase.co';
+            const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZoaWZnbWZpdXJocnZjeWZ4dGpiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU3ODgyMTQsImV4cCI6MjA3MTM2NDIxNH0.LBatYzK0gmZkN9Dv5t2OMpDBPVnpGNECwxvlsyIebS0';
+            
+            // Initialize Supabase client
+            const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+            /**
+             * Fetches data from the Google Sheets CSV and processes it.
+             * @returns {Promise<Object>} Processed data including categories, people, and items.
+             */
+            async function fetchData() {
+                try {
+                    const response = await fetch(GOOGLE_SHEET_URL);
+                    const csvText = await response.text();
+
+                    // Split the text into lines and handle the header
+                    const lines = csvText.split('\n').slice(1);
+                    const data = lines.map(line => {
+                        const [name, item, category, servings] = line.split(',');
+                        return {
+                            name: name ? name.trim() : 'Unknown',
+                            item: item ? item.trim() : 'N/A',
+                            category: category ? category.trim() : 'Other',
+                            servings: parseInt(servings, 10) || 0
+                        };
+                    });
+
+                    // Aggregate the data
+                    const categories = {};
+                    const people = {};
+                    let totalServings = 0;
+
+                    data.forEach(row => {
+                        totalServings += row.servings;
+
+                        // Aggregate food categories
+                        if (categories[row.category]) {
+                            categories[row.category] += row.servings;
+                        } else {
+                            categories[row.category] = row.servings;
+                        }
+
+                        // Aggregate servings per person
+                        if (people[row.name]) {
+                            people[row.name] += row.servings;
+                        } else {
+                            people[row.name] = row.servings;
+                        }
+                    });
+
+                    return { categories, people, totalServings, items: data };
+                } catch (error) {
+                    console.error('Error fetching data:', error);
+                    return null;
+                }
+            }
+
+            /**
+             * Renders a doughnut chart for food categories.
+             * @param {Object} data - The aggregated data for the chart.
+             */
+            function renderCategoryChart(data) {
+                const ctx = document.getElementById('categoryChart').getContext('2d');
+                new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: Object.keys(data),
+                        datasets: [{
+                            data: Object.values(data),
+                            backgroundColor: CHART_COLORS,
+                            borderColor: CHART_BORDERS,
+                            borderWidth: 2,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '70%',
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'bottom',
+                                labels: {
+                                    color: '#4a4a4a',
+                                    font: {
+                                        family: 'Poppins',
+                                        size: 10
+                                    }
+                                }
+                            }
+                        },
+                        animation: {
+                            animateScale: true,
+                            animateRotate: true
+                        }
+                    }
+                });
+            }
+
+            /**
+             * Renders a bar chart for servings per person.
+             * @param {Object} data - The aggregated data for the chart.
+             */
+            function renderPersonChart(data) {
+                const ctx = document.getElementById('personChart').getContext('2d');
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: Object.keys(data),
+                        datasets: [{
+                            label: 'Servings',
+                            data: Object.values(data),
+                            backgroundColor: CHART_COLORS,
+                            borderColor: CHART_BORDERS,
+                            borderWidth: 2,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: { color: '#4a4a4a', font: { family: 'Poppins' } },
+                                grid: { color: 'rgba(0, 0, 0, 0.1)' }
+                            },
+                            x: {
+                                ticks: { color: '#4a4a4a', font: { family: 'Poppins' } },
+                                grid: { display: false }
+                            }
+                        },
+                        plugins: {
+                            legend: { display: false }
+                        },
+                        animation: {
+                            duration: 1000,
+                            easing: 'easeInOutQuad'
+                        }
+                    }
+                });
+            }
+
+            /**
+             * Populates the list of food items.
+             * @param {Array} items - An array of food item objects.
+             */
+            function populateItemsList(items) {
+                const listContainer = document.getElementById('itemsList');
+                listContainer.innerHTML = ''; // Clear loading message
+
+                if (items.length === 0) {
+                    listContainer.innerHTML = '<li class="text-center col-span-full text-gray-600">No items found.</li>';
+                    return;
+                }
+
+                items.forEach(item => {
+                    const listItem = document.createElement('li');
+                    listItem.className = 'bg-gray-200 bg-opacity-30 rounded-lg p-4 transition-transform duration-300 hover:scale-105';
+                    listItem.innerHTML = `
+                        <p class="font-bold text-lg">${item.item}</p>
+                        <p class="text-sm text-gray-600">By: ${item.name}</p>
+                        <p class="text-sm mt-1">Category: <span class="text-food-orange">${item.category}</span></p>
+                        <p class="text-sm">Servings: <span class="font-bold text-dark-brown">${item.servings}</span></p>
+                    `;
+                    listContainer.appendChild(listItem);
+                });
+            }
+
+            /**
+             * Sets up the interactive star rating system and form submission.
+             */
+            function setupStarRatingAndForm() {
+                const ratingContainer = document.getElementById('starRating');
+                const feedbackMessage = document.getElementById('feedbackMessage');
+                const feedbackForm = document.getElementById('feedbackForm');
+                const submitButton = document.getElementById('submitButton');
+                let currentRating = 0;
+                
+                // Create SVG star icon
+                const starSVG = `
+                    <svg class="h-6 w-6 fill-current text-gray-400 transition-colors duration-200" viewBox="0 0 24 24">
+                        <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
+                    </svg>
+                `;
+
+                // Add stars to the DOM and attach listeners
+                for (let i = 1; i <= 5; i++) {
+                    const star = document.createElement('span');
+                    star.className = 'star';
+                    star.innerHTML = starSVG;
+                    star.dataset.rating = i;
+                    ratingContainer.appendChild(star);
+
+                    // Add hover and click listeners to each star
+                    star.addEventListener('mouseover', () => {
+                        highlightStars(i);
+                    });
+
+                    star.addEventListener('click', () => {
+                        currentRating = i;
+                        highlightStars(i);
+                    });
+
+                    star.addEventListener('mouseout', () => {
+                        highlightStars(currentRating);
+                    });
+                }
+
+                function highlightStars(rating) {
+                    const stars = ratingContainer.querySelectorAll('.star svg');
+                    stars.forEach((star, index) => {
+                        if (index < rating) {
+                            star.style.color = 'var(--food-orange)';
+                        } else {
+                            star.style.color = 'rgb(156, 163, 175)'; // Tailwind gray-400
+                        }
+                    });
+                }
+
+                // Handle form submission
+                feedbackForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    
+                    const name = document.getElementById('feedbackName').value;
+                    const comment = document.getElementById('feedbackComment').value;
+                    
+                    if (currentRating === 0) {
+                        feedbackMessage.textContent = 'Please select a star rating.';
+                        feedbackMessage.className = 'mt-4 text-center text-red-500 font-bold block';
+                        return;
+                    }
+
+                    submitButton.disabled = true;
+                    submitButton.textContent = 'Submitting...';
+
+                    try {
+                        // Use Supabase to insert a new feedback record
+                        const { data, error } = await supabase
+                            .from('feedback')
+                            .insert([
+                                { name, rating: currentRating, comment }
+                            ]);
+
+                        if (error) {
+                            throw error;
+                        }
+                        
+                        feedbackMessage.textContent = 'Feedback submitted successfully!';
+                        feedbackMessage.className = 'mt-4 text-center text-food-orange font-bold block animate-pulse';
+                        
+                        // Reset the form
+                        feedbackForm.reset();
+                        currentRating = 0;
+                        highlightStars(0);
+
+                        // Refresh feedback display
+                        fetchFeedback();
+                        
+                    } catch (error) {
+                        // The specific error "new row violates row-level security policy for table \"feedback\""
+                        // means you need to go to your Supabase dashboard, navigate to "Authentication" -> "Policies",
+                        // and create a new RLS policy for the `feedback` table that allows "INSERT" for anonymous users.
+                        console.error("Error adding feedback: ", error);
+                        feedbackMessage.textContent = `Submission failed. Error: ${error.message}. Please check your Supabase table and security policies.`;
+                        feedbackMessage.className = 'mt-4 text-center text-red-500 font-bold block';
+                    } finally {
+                        submitButton.disabled = false;
+                        submitButton.textContent = 'Submit Feedback';
+                    }
+
+                    setTimeout(() => {
+                        feedbackMessage.className = 'mt-4 text-center hidden';
+                    }, 5000);
+                });
+            }
+
+            /**
+             * Fetches and displays feedback from Supabase.
+             */
+            async function fetchFeedback() {
+                const feedbackDisplay = document.getElementById('feedbackDisplay');
+                feedbackDisplay.innerHTML = '<p class="text-center text-gray-600">Loading feedback...</p>';
+
+                try {
+                    const { data: feedbackData, error } = await supabase
+                        .from('feedback')
+                        .select('*')
+                        .order('created_at', { ascending: false });
+
+                    if (error) {
+                        throw error;
+                    }
+
+                    feedbackDisplay.innerHTML = ''; // Clear previous content
+                    if (feedbackData.length === 0) {
+                        feedbackDisplay.innerHTML = '<p class="text-center text-gray-600">No feedback yet. Be the first!</p>';
+                        return;
+                    }
+
+                    feedbackData.forEach((feedback) => {
+                        const feedbackItem = document.createElement('div');
+                        feedbackItem.className = 'glass-card rounded-xl p-4 transition-transform duration-300 hover:scale-105';
+                        
+                        // Create star icons for the rating
+                        const starsHtml = Array(5).fill(null).map((_, i) => `
+                            <svg class="h-4 w-4 fill-current ${i < feedback.rating ? 'text-food-orange' : 'text-gray-400'}" viewBox="0 0 24 24">
+                                <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
+                            </svg>
+                        `).join('');
+
+                        feedbackItem.innerHTML = `
+                            <div class="flex items-center space-x-2">
+                                <span class="font-bold text-lg">${feedback.name || 'Anonymous'}</span>
+                                <div class="flex space-x-0.5">${starsHtml}</div>
+                            </div>
+                            <p class="mt-2 text-gray-800">${feedback.comment}</p>
+                        `;
+                        feedbackDisplay.appendChild(feedbackItem);
+                    });
+
+                } catch (error) {
+                    // This is the error you are seeing. The database is preventing anonymous users from
+                    // reading the data from the 'feedback' table.
+                    // To fix this, you must create a new RLS policy in Supabase that allows "SELECT"
+                    // for the "anon" role.
+                    console.error("Error fetching feedback:", error);
+                    feedbackDisplay.innerHTML = '<p class="text-center text-red-500">Error loading feedback. Please check your Supabase security policies to allow reading (SELECT) for anonymous users.</p>';
+                }
+            }
+
+
+            // Main function to run the dashboard
+            async function initializeDashboard() {
+                const data = await fetchData();
+                if (data) {
+                    // Update total servings count
+                    document.getElementById('totalServings').textContent = data.totalServings;
+                    
+                    // Render the charts
+                    renderCategoryChart(data.categories);
+                    renderPersonChart(data.people);
+
+                    // Populate the items list
+                    populateItemsList(data.items);
+                } else {
+                    // Handle error case
+                    document.getElementById('itemsList').innerHTML = '<li class="text-center col-span-full text-red-500">Failed to load data. Please check the Google Sheets URL.</li>';
+                }
+                
+                // Initialize the star rating system and form submission handler
+                setupStarRatingAndForm();
+
+                // Set up the real-time feedback display
+                fetchFeedback();
+            }
+
+            // Run the main function
+            initializeDashboard();
+        });
+    </script>
+    <!--Java script for N8N ChatBot---> 
+    
+</body>
+</html>
